@@ -1,0 +1,15 @@
+{
+  "name": "VehicleKart Marketplace",
+  "short_name": "VehicleKart",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#f1f3f6",
+  "theme_color": "#2874f0",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/743/743131.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
