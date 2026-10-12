@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VehicleKart - FinTech Vehicle & Asset Marketplace</title>
+
+    <!-- PWA Settings -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2874f0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="VehicleKart">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/743/743131.png">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        flipkartBlue: '#2874f0',
+                        flipkartYellow: '#ff9f00',
+                        flipkartGreen: '#388e3c',
+                        flipkartGray: '#f1f3f6'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Inline Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').then(reg => {
+                    console.log('Service Worker Registered!', reg);
+                }).catch(err => {
+                    console.log('Service Worker Failed!', err);
+                });
+            });
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f1f3f6;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        /* Custom Scrollbar for Categories */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* Scanner Frame Animation for Face Verification */
+        .scanner-line {
+            width: 100%;
+            height: 3px;
+            background: #2874f0;
+            position: absolute;
+            top: 0;
+            animation: scan 2s infinite linear;
+            box-shadow: 0 0 12px #2874f0;
+        }
+        @keyframes scan {
+            0% { top: 0%; }
+            50% { top: 95%; }
+            100% { top: 0%; }
+        }
+
+        /* Shimmer Banner Animation */
+        .banner-gradient {
+            background: linear-gradient(90deg, #ff9f00 0%, #ff5252 50%, #2874f0 100%);
+            background-size: 200% 200%;
+            animation: gradientShift 6s ease infinite;
+        }
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+    </style>
+</head>
+<body class="bg-[#f1f3f6] text-gray-900 pb-16">
+
+    <!-- 1. MANDATORY CLIENT ONBOARDING & SECURITY FLOW (FIRST VIEW) -->
+    <div id="authOverlay" class="fixed inset-0 bg-black/70 backdrop-blur-md z-[2000] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-gray-100 transition-all duration-300">
+            <!-- Auth Header -->
+            <div class="bg-[#2874f0] p-6 text-white text-center relative">
+                <div class="text-2xl font-black tracking-italic flex items-center justify-center gap-2">
+                    VehicleKart <span class="bg-[#ff9f00] text-xs text-black px-2 py-0.5 rounded font-bold uppercase">Secure</span>
+                </div>
+                <p class="text-xs text-blue-100 mt-1">Tier-1 Sovereign Verification Protocol</p>
+            </div>
+
+            <div class="p-6">
+                <!-- STEP 1: MOBILE NUMBER -->
+                <div id="authStep1" class="space-y-4">
+                    <div class="text-center">
+                        <h3 class="font-bold text-lg text-gray-800">मोबाइल नंबर दर्ज करें</h3>
+                        <p class="text-xs text-gray-500 mt-1">Instant Bank Financing verification & Login</p>
+                    </div>
+                    <div class="relative">
+                        <span class="absolute left-3 top-3 text-gray-500 font-semibold text-sm">+91</span>
+                        <input type="tel" id="mobileNumberInput" maxlength="10" placeholder="9876543210" class="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#2874f0] outline-none text-base font-semibold tracking-wider">
+                    </div>
+                    <button onclick="handleRequestOTP()" class="w-full bg-[#ff9f00] hover:bg-amber-600 text-white font-bold py-3 rounded-xl shadow-md transition-all active:scale-95">
+                        OTP प्राप्त करें (Request OTP)
+                    </button>
+                    <p class="text-[10px] text-center text-gray-400">By continuing, you agree to VehicleKart's Sovereign Terms & Iron-Lock Protocols.</p>
+                </div>
+
+                <!-- STEP 2: OTP VERIFICATION -->
+                <div id="authStep2" class="space-y-4 hidden">
+                    <div class="text-center">
+                        <h3 class="font-bold text-lg text-gray-800">OTP दर्ज करें</h3>
+                        <p class="text-xs text-gray-500 mt-1">Sent to +91 <span id="displayUserPhone" class="font-bold text-gray-700"></span></p>
+                    </div>
+                    <div class="flex justify-center gap-2 my-2">
+                        <input type="text" maxlength="6" id="otpCodeInput" placeholder="123456" class="w-full text-center tracking-[1em] text-xl font-bold py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#2874f0] outline-none">
+                    </div>
+                    <button onclick="handleVerifyOTP()" class="w-full bg-[#2874f0] hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-md transition-all active:scale-95">
+                        OTP सत्यापित करें (Verify OTP)
+                    </button>
+                    <div class="text-center">
+                        <button onclick="resetAuthSteps()" class="text-xs text-[#2874f0] font-semibold hover:underline">नंबर बदलें (Change Phone)</button>
+                    </div>
+                </div>
+
+                <!-- STEP 3: FACE BIOMETRIC SCAN SIMULATION -->
+                <div id="authStep3" class="space-y-4 hidden">
+                    <div class="text-center">
+                        <h3 class="font-bold text-lg text-gray-800">फेस स्कैन सत्यापन (Face Scan)</h3>
+                        <p class="text-xs text-gray-500 mt-1">Biometric security check for High-Value Assets</p>
+                    </div>
+
+                    <div class="relative w-48 h-48 mx-auto rounded-full overflow-hidden border-4 border-[#2874f0] bg-gray-900 flex items-center justify-center shadow-inner">
+                        <video id="webcamVideo" autoplay playsinline muted class="w-full h-full object-cover hidden"></video>
+                        <div id="fallbackAvatar" class="text-6xl text-gray-500 flex flex-col items-center">
+                            👤
+                            <span class="text-[10px] text-gray-400 mt-2">Camera Access Required</span>
+                        </div>
+                        <div class="scanner-line"></div>
+                    </div>
+
+                    <p id="scanStatusText" class="text-xs text-center text-blue-600 font-semibold animate-pulse">Scanning biometric identity points...</p>
+
+                    <button onclick="handleCompleteFaceAuth()" class="w-full bg-[#388e3c] hover:bg-green-700 text-white font-bold py-3 rounded-xl shadow-md transition-all active:scale-95">
+                        फेस स्कैन पूरा करें (Complete Verification)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. MAIN APP INTERFACE -->
+    <div id="mainAppDashboard" class="hidden">
+
+        <!-- PWA Installation Alert Banner -->
+        <div id="pwaInstallBanner" class="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-4 py-2.5 flex items-center justify-between shadow-md text-xs font-semibold">
+            <div class="flex items-center gap-2">
+                <span class="text-base">📱</span>
+                <span>होम स्क्रीन पर ऐप इंस्टॉल करें (Install VehicleKart App)</span>
+            </div>
+            <button onclick="triggerPWAInstall()" class="bg-white text-orange-600 px-3 py-1 rounded-full font-bold shadow-sm hover:bg-orange-50 active:scale-95">
+                Install
+            </button>
+        </div>
+
+        <!-- APP HEADER (Flipkart Blue Style) -->
+        <header class="bg-[#2874f0] text-white sticky top-0 z-50 shadow-md">
+            <!-- Top Bar -->
+            <div class="px-3 py-2.5 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl font-black italic tracking-tight">VehicleKart</span>
+                    <span class="bg-[#ff9f00] text-black text-[10px] font-extrabold px-1.5 py-0.5 rounded">PLUS</span>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <button onclick="triggerPWAInstall()" class="bg-[#ff9f00] text-black font-bold text-[11px] px-2.5 py-1 rounded flex items-center gap-1 shadow-sm">
+                        <span>📥</span> Install
+                    </button>
+                    <button onclick="switchTab('cart')" class="relative text-xl">
+                        🛒
+                        <span id="cartBadgeCount" class="absolute -top-1.5 -right-2 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">0</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Address / Location Selector Bar -->
+            <div class="bg-[#1b64d6] px-3 py-1.5 flex items-center justify-between text-xs text-blue-100 border-t border-blue-400/30">
+                <div class="flex items-center gap-1.5 truncate">
+                    <span class="text-amber-300">📍</span>
+                    <span class="font-medium text-white">Deliver to: <b id="currentUserLocation">Ludhiana, Punjab - 141001</b></span>
+                </div>
+                <button onclick="changeUserLocationPrompt()" class="bg-blue-800/60 hover:bg-blue-800 px-2 py-0.5 rounded text-[10px] text-white border border-blue-300/40">
+                    Change ▾
+                </button>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="px-3 pb-2.5 pt-1">
+                <div class="bg-white rounded-md flex items-center px-3 py-2 shadow-inner">
+                    <span class="text-gray-400 text-sm mr-2">🔍</span>
+                    <input type="text" id="mainSearchInput" onkeyup="executeLiveSearch()" placeholder="Search EV Cars, Bikes, Commercial Trucks, Ships..." class="w-full text-xs text-gray-800 outline-none placeholder-gray-400 font-medium">
+                    <button onclick="clearSearch()" id="clearSearchBtn" class="text-gray-400 text-xs font-bold hidden">✕</button>
+                </div>
+            </div>
+
+            <!-- Flipkart Quick Switcher Chips -->
+            <div class="flex overflow-x-auto no-scrollbar bg-[#1d63d2] text-xs border-t border-blue-400/20 px-2 py-1.5 gap-2 font-medium">
+                <button onclick="filterCategory('all')" class="bg-white text-[#2874f0] px-3 py-1 rounded-full font-bold shadow-sm whitespace-nowrap">Flipkart Assets</button>
+                <button onclick="filterCategory('bike')" class="bg-blue-800 text-white px-3 py-1 rounded-full whitespace-nowrap flex items-center gap-1">⚡ EV Minutes</button>
+                <button onclick="filterCategory('ship')" class="bg-blue-800 text-white px-3 py-1 rounded-full whitespace-nowrap flex items-center gap-1">🚢 Maritime</button>
+                <button onclick="filterCategory('commercial')" class="bg-blue-800 text-white px-3 py-1 rounded-full whitespace-nowrap flex items-center gap-1">🚚 Fleet Logistics</button>
+            </div>
+        </header>
+
+        <!-- MAIN CONTENT SWITCHER AREA -->
+        <main class="max-w-md mx-auto">
+
+            <!-- ================= TAB 1: HOME VIEW ================= -->
+            <div id="viewHome" class="space-y-2">
+                
+                <!-- Category Icons Slider (Horizontal) -->
+                <div class="bg-white py-3 px-2 flex overflow-x-auto no-scrollbar gap-4 border-b border-gray-200">
+                    <div onclick="filterCategory('all')" class="flex flex-col items-center min-w-[62px] cursor-pointer">
+                        <div class="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-xl mb-1 border border-blue-100">✨</div>
+                        <span class="text-[11px] font-semibold text-gray-700">All Assets</span>
+                    </div>
+                    <div onclick="filterCategory('car')" class="flex flex-col items-center min-w-[62px] cursor-pointer">
+                        <div class="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-xl mb-1 border border-blue-100">🚗</div>
+                        <span class="text-[11px] font-semibold text-gray-700">EV Cars</span>
+                    </div>
+                    <div onclick="filterCategory('bike')" class="flex flex-col items-center min-w-[62px] cursor-pointer">
+                        <div class="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-xl mb-1 border border-blue-100">🏍️</div>
+                        <span class="text-[11px] font-semibold text-gray-700">EV Bikes</span>
+                    </div>
+                    <div onclick="filterCategory('commercial')" class="flex flex-col items-center min-w-[62px] cursor-pointer">
+                        <div class="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-xl mb-1 border border-blue-100">🚚</div>
+                        <span class="text-[11px] font-semibold text-gray-700">Commercial</span>
+                    </div>
+                    <div onclick="filterCategory('ship')" class="flex flex-col items-center min-w-[62px] cursor-pointer">
+                        <div class="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-xl mb-1 border border-blue-100">🚢</div>
+                        <span class="text-[11px] font-semibold text-gray-700">Ships</span>
+                    </div>
+                    <div onclick="filterCategory('scooter')" class="flex flex-col items-center min-w-[62px] cursor-pointer">
+                        <div class="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-xl mb-1 border border-blue-100">🛵</div>
+                        <span class="text-[11px] font-semibold text-gray-700">Scooters</span>
+                    </div>
+                </div>
+
+                <!-- Dynamic Offer Banner -->
+                <div class="px-2 pt-1">
+                    <div class="banner-gradient rounded-xl p-4 text-white shadow-md relative overflow-hidden">
+                        <span class="bg-white text-black text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">Big Billion Vehicle Days</span>
+                        <h2 class="text-lg font-black mt-1">40% Off Vehicle Financing</h2>
+                        <p class="text-xs text-amber-100 mt-0.5">30-Minute Instant SLA Approval via JPMorgan & Kotak</p>
+                        <div class="mt-3 flex items-center gap-2">
+                            <span class="bg-black/30 backdrop-blur-sm text-xs px-2.5 py-1 rounded-md font-semibold border border-white/20">Zero Down Payment</span>
+                            <span class="bg-white/20 backdrop-blur-sm text-xs px-2.5 py-1 rounded-md font-semibold">Iron-Lock Shielded</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vehicle Product Grid Header -->
+                <div class="bg-white px-3 py-2 flex items-center justify-between border-y border-gray-200">
+                    <div>
+                        <h3 class="font-bold text-sm text-gray-800 flex items-center gap-1.5">
+                            ⚡ Top Recommended Vehicles <span id="activeFilterLabel" class="text-xs font-normal text-blue-600">(All)</span>
+                        </h3>
+                        <p class="text-[10px] text-gray-500">Includes Bank SLA guarantee & Escrow booking</p>
+                    </div>
+                    <button onclick="resetFilters()" class="text-xs text-[#2874f0] font-bold">Reset</button>
+                </div>
+
+                <!-- Product Grid (2 Columns) -->
+                <div id="productGridContainer" class="grid grid-cols-2 gap-2 px-2 pb-4">
+                    <!-- Dynamic product cards will be rendered by JS -->
+                </div>
+            </div>
+
+            <!-- ================= TAB 2: CATEGORY DIRECTORY ================= -->
+            <div id="viewDeals" class="hidden p-3 space-y-3">
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                    <h2 class="font-bold text-base text-gray-800 border-b pb-2 mb-3">Vehicle Categories Directory</h2>
+                    <div class="space-y-3">
+                        <div onclick="switchTab('home'); filterCategory('car')" class="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg cursor-pointer hover:bg-blue-50">
+                            <div class="flex items-center gap-3">
+                                <span class="text-2xl">🚗</span>
+                                <div>
+                                    <div class="font-bold text-sm">Electric Cars & Sedans</div>
+                                    <div class="text-[11px] text-gray-500">Passenger EVs with 500km Range</div>
+                                </div>
+                            </div>
+                            <span class="text-gray-400">›</span>
+                        </div>
+                        <div onclick="switchTab('home'); filterCategory('bike')" class="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg cursor-pointer hover:bg-blue-50">
+                            <div class="flex items-center gap-3">
+                                <span class="text-2xl">🏍️</span>
+                                <div>
+                                    <div class="font-bold text-sm">High-Speed EV Motorcycles</div>
+                                    <div class="text-[11px] text-gray-500">Ultraviolette & Sports EV Lineup</div>
+                                </div>
+                            </div>
+                            <span class="text-gray-400">›</span>
+                        </div>
+                        <div onclick="switchTab('home'); filterCategory('commercial')" class="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg cursor-pointer hover:bg-blue-50">
+                            <div class="flex items-center gap-3">
+                                <span class="text-2xl">🚚</span>
+                                <div>
+                                    <div class="font-bold text-sm">Commercial Trucks & Carriers</div>
+                                    <div class="text-[11px] text-gray-500">Fleet Assets & Delivery Trucks</div>
+                                </div>
+                            </div>
+                            <span class="text-gray-400">›</span>
+                        </div>
+                        <div onclick="switchTab('home'); filterCategory('ship')" class="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg cursor-pointer hover:bg-blue-50">
+                            <div class="flex items-center gap-3">
+                                <span class="text-2xl">🚢</span>
+                                <div>
+                                    <div class="font-bold text-sm">Maritime Vessels & Cargo</div>
+                                    <div class="text-[11px] text-gray-500">Cross-Border Escrow Ship Financing</div>
+                                </div>
+                            </div>
+                            <span class="text-gray-400">›</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= TAB 3: FINTECH DEALS & PROFIT SPLIT ================= -->
+            <div id="viewOffers" class="hidden p-3 space-y-3">
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                    <div class="flex items-center gap-2 border-b pb-2 mb-3">
+                        <span class="text-2xl">🔒</span>
+                        <div>
+                            <h2 class="font-bold text-base text-gray-800">Iron-Lock FD 50:25:25 Protocol</h2>
+                            <p class="text-xs text-gray-500">Sovereign FinTech Yield Breakdown</p>
+                        </div>
+                    </div>
+
+                    <!-- Profit Split Interactive Breakdown -->
+                    <div class="space-y-3 my-4">
+                        <div class="bg-green-50 p-3 rounded-lg border border-green-200">
+                            <div class="flex justify-between font-bold text-sm text-green-800">
+                                <span>Consumer Yield Share</span>
+                                <span>50%</span>
+                            </div>
+                            <p class="text-[11px] text-green-700 mt-1">Direct cashbacks & EMI interest waivers credited to buyer wallet.</p>
+                        </div>
+                        <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                            <div class="flex justify-between font-bold text-sm text-blue-800">
+                                <span>Platform Treasury</span>
+                                <span>25%</span>
+                            </div>
+                            <p class="text-[11px] text-blue-700 mt-1">Automated escrow management & continuous asset monitoring.</p>
+                        </div>
+                        <div class="bg-amber-50 p-3 rounded-lg border border-amber-200">
+                            <div class="flex justify-between font-bold text-sm text-amber-800">
+                                <span>Partner Bank NIM</span>
+                                <span>25%</span>
+                            </div>
+                            <p class="text-[11px] text-amber-700 mt-1">JPMorgan / Kotak net interest margin & risk buffer reserve.</p>
+                        </div>
+                    </div>
+
+                    <!-- 30-Min SLA Loan Calculator -->
+                    <div class="border-t pt-3">
+                        <h3 class="font-bold text-sm text-gray-800 mb-2">30-Min Bank SLA Loan Calculator</h3>
+                        <div class="space-y-2 text-xs">
+                            <label class="block font-medium text-gray-700">Select Vehicle Asset Price (₹):</label>
+                            <input type="range" min="100000" max="20000000" step="100000" id="loanCalcRange" oninput="calculateBankSLA()" class="w-full accent-[#2874f0]">
+                            <div class="flex justify-between font-bold text-sm">
+                                <span>Selected Amount:</span>
+                                <span id="loanCalcAmount" class="text-[#2874f0]">₹15,00,000</span>
+                            </div>
+                            <div class="bg-gray-100 p-2.5 rounded-lg flex justify-between items-center text-gray-700 font-semibold mt-2">
+                                <span>Estimated EMI (60 Months @ 7.5%):</span>
+                                <span id="calculatedEMI" class="text-green-700 font-extrabold text-sm">₹29,990 / mo</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= TAB 4: ACCOUNT VIEW ================= -->
+            <div id="viewAccount" class="hidden space-y-2">
+                <!-- User Profile Header -->
+                <div class="bg-white p-4 flex items-center justify-between border-b border-gray-200">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-full bg-[#2874f0] text-white flex items-center justify-center font-black text-xl shadow">
+                            👤
+                        </div>
+                        <div>
+                            <div class="font-bold text-sm text-gray-900" id="accUserName">Verified Sovereign Client</div>
+                            <div class="text-xs text-gray-500" id="accUserPhone">+91 9876543210</div>
+                            <span class="inline-block bg-green-100 text-green-800 text-[9px] font-extrabold px-1.5 py-0.2 rounded border border-green-300 mt-1">Biometric Verified</span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-xs text-gray-500">SuperCoins</div>
+                        <div class="font-black text-amber-500 text-base flex items-center justify-end gap-1">
+                            🪙 500
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings & Options List (Matching Flipkart Account Screen) -->
+                <div class="bg-white divide-y divide-gray-100 border-y border-gray-200 text-sm">
+                    <div onclick="alert('Profile details verified with Sovereign UIDAI Face Auth.')" class="p-3.5 flex justify-between items-center hover:bg-gray-50 cursor-pointer">
+                        <span class="text-gray-800 font-medium">प्रॉफ़ाइल में बदलाव करें (Edit Profile)</span>
+                        <span class="text-gray-400">›</span>
+                    </div>
+                    <div onclick="alert('Saved Delivery & Registration Address: Ludhiana, Punjab')" class="p-3.5 flex justify-between items-center hover:bg-gray-50 cursor-pointer">
+                        <span class="text-gray-800 font-medium">सेव किए गए पते (Saved Addresses)</span>
+                        <span class="text-gray-400">›</span>
+                    </div>
+                    <div onclick="toggleLanguage()" class="p-3.5 flex justify-between items-center hover:bg-gray-50 cursor-pointer">
+                        <span class="text-gray-800 font-medium">भाषा बदलें (Change Language)</span>
+                        <span class="text-xs font-bold text-[#2874f0]" id="currentLangLabel">Hindi / English</span>
+                    </div>
+                    <div onclick="switchTab('offers')" class="p-3.5 flex justify-between items-center hover:bg-gray-50 cursor-pointer">
+                        <span class="text-gray-800 font-medium">फाइनेंस विकल्प (Flipkart Personal Loan / Credit Card)</span>
+                        <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded font-bold">Pre-Approved</span>
+                    </div>
+                    <div onclick="showTermsModal()" class="p-3.5 flex justify-between items-center hover:bg-gray-50 cursor-pointer">
+                        <span class="text-gray-800 font-medium">शर्तें, नीतियां और लाइसेंस (Terms & Policies)</span>
+                        <span class="text-gray-400">›</span>
+                    </div>
+                    <div onclick="handleLogout()" class="p-3.5 flex justify-between items-center hover:bg-red-50 cursor-pointer text-red-600 font-bold">
+                        <span>Log out / Switch Account</span>
+                        <span>›</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= TAB 5: CART & ESCROW VIEW ================= -->
+            <div id="viewCart" class="hidden p-3 space-y-3">
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                    <h2 class="font-bold text-base text-gray-800 border-b pb-2 mb-3">Your Vehicle Escrow Bookings</h2>
+                    
+                    <div id="cartItemsList" class="space-y-3">
+                        <div class="text-center py-8 text-gray-500">
+                            <span class="text-4xl block mb-2">🛒</span>
+                            <p class="font-medium text-sm">No vehicles added to cart yet.</p>
+                            <p class="text-xs text-gray-400 mt-1">Browse vehicles on Home to request 30-min loan approval.</p>
+                            <button onclick="switchTab('home')" class="mt-4 bg-[#2874f0] text-white px-4 py-2 rounded-lg font-bold text-xs">
+                                Browse Vehicles
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- FIXED BOTTOM NAVIGATION BAR (Flipkart Native Style) -->
+        <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around py-1.5 z-50 max-w-md mx-auto shadow-lg">
+            <button onclick="switchTab('home')" id="navBtnHome" class="flex flex-col items-center flex-1 text-[#2874f0] font-bold">
+                <span class="text-lg">🏠</span>
+                <span class="text-[10px] mt-0.5">होम</span>
+            </button>
+            <button onclick="switchTab('deals')" id="navBtnDeals" class="flex flex-col items-center flex-1 text-gray-500">
+                <span class="text-lg">📂</span>
+                <span class="text-[10px] mt-0.5">कैटेगरी</span>
+            </button>
+            <button onclick="switchTab('offers')" id="navBtnOffers" class="flex flex-col items-center flex-1 text-gray-500">
+                <span class="text-lg">🏷️</span>
+                <span class="text-[10px] mt-0.5">बेहतरीन डील</span>
+            </button>
+            <button onclick="switchTab('account')" id="navBtnAccount" class="flex flex-col items-center flex-1 text-gray-500">
+                <span class="text-lg">👤</span>
+                <span class="text-[10px] mt-0.5">अकाउंट</span>
+            </button>
+            <button onclick="switchTab('cart')" id="navBtnCart" class="flex flex-col items-center flex-1 text-gray-500 relative">
+                <span class="text-lg">🛒</span>
+                <span class="text-[10px] mt-0.5">कार्ट</span>
+            </button>
+        </nav>
+
+    </div>
+
+    <!-- VEHICLE DETAILS & LOAN APPLY MODAL -->
+    <div id="vehicleDetailModal" class="fixed inset-0 bg-black/70 z-[3000] hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl max-h-[90vh] overflow-y-auto p-4 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-start border-b pb-2">
+                <div>
+                    <span id="modalCategoryBadge" class="bg-blue-100 text-[#2874f0] text-[10px] font-bold px-2 py-0.5 rounded">Category</span>
+                    <h2 id="modalVehicleName" class="text-lg font-bold text-gray-900 mt-1">Vehicle Name</h2>
+                </div>
+                <button onclick="closeVehicleModal()" class="text-gray-400 text-xl font-bold p-1">✕</button>
+            </div>
+
+            <div id="modalVehicleImg" class="w-full h-44 bg-gray-100 rounded-xl flex items-center justify-center text-7xl shadow-inner">
+                🚗
+            </div>
+
+            <div class="bg-green-50 p-3 rounded-lg border border-green-200 flex justify-between items-center">
+                <div>
+                    <div class="text-xs text-green-700 font-semibold">Instant Bank SLA Price</div>
+                    <div id="modalVehiclePrice" class="text-xl font-extrabold text-green-800">₹0</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-xs text-gray-500">Starting EMI</div>
+                    <div id="modalVehicleEMI" class="text-sm font-bold text-[#2874f0]">₹0/mo</div>
+                </div>
+            </div>
+
+            <div class="space-y-2 text-xs">
+                <div class="flex justify-between py-1 border-b">
+                    <span class="text-gray-500">Financing Partner</span>
+                    <span id="modalBankPartner" class="font-bold text-gray-800">Kotak Mahindra / JPMorgan</span>
+                </div>
+                <div class="flex justify-between py-1 border-b">
+                    <span class="text-gray-500">SLA Approval Speed</span>
+                    <span class="font-bold text-green-700">⏱️ Under 30 Minutes</span>
+                </div>
+                <div class="flex justify-between py-1 border-b">
+                    <span class="text-gray-500">Iron-Lock Protection</span>
+                    <span class="font-bold text-blue-700">Shielded Escrow</span>
+                </div>
+            </div>
+
+            <div class="pt-2 flex gap-2">
+                <button onclick="addVehicleToCart()" class="flex-1 bg-[#ff9f00] text-black font-bold py-3 rounded-xl shadow active:scale-95 text-xs">
+                     Add to Cart / Escrow
+                </button>
+                <button onclick="executeInstantLoanApply()" class="flex-1 bg-[#2874f0] text-white font-bold py-3 rounded-xl shadow active:scale-95 text-xs">
+                    ⚡ 30-Min Loan Apply
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TERMS & POLICIES MODAL -->
+    <div id="termsModal" class="fixed inset-0 bg-black/70 z-[3000] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl p-5 space-y-3 max-h-[80vh] overflow-y-auto">
+            <h3 class="font-bold text-base border-b pb-2">VehicleKart Sovereign Terms & Master Blueprint</h3>
+            <div class="text-xs text-gray-600 space-y-2">
+                <p><b>1. Iron-Lock FD Protocol:</b> All asset transactions undergo structured split yield (50% Consumer reward, 25% Platform treasury, 25% Bank NIM).</p>
+                <p><b>2. Sovereign Territorial Liability:</b> Vehicles registered under state escrow jurisdiction (e.g., Ludhiana, Punjab) with zero third-party encumbrance.</p>
+                <p><b>3. 30-Minute SLA:</b> Loan approvals are automated via biometrically verified API feeds from partner banks.</p>
+            </div>
+            <button onclick="document.getElementById('termsModal').classList.add('hidden')" class="w-full bg-[#2874f0] text-white font-bold py-2.5 rounded-xl text-xs">
+                Close Terms
+            </button>
+        </div>
+    </div>
+
+    <script>
+        /* ================= DATABASE & STATE MANAGEMENT ================= */
+        const VEHICLE_DATA = [
+            { id: 1, name: "Tesla EV Sedan Model S", category: "car", price: 1850000, displayPrice: "₹18,50,000", origPrice: "₹21,00,000", discount: "12% off", emi: "₹32,400", icon: "🚗", bank: "JPMorgan Chase", desc: "Flagship 500km Range Electric Sedan" },
+            { id: 2, name: "Ultraviolette F77 EV Bike", category: "bike", price: 380000, displayPrice: "₹3,80,000", origPrice: "₹4,50,000", discount: "15% off", emi: "₹7,200", icon: "🏍️", bank: "Kotak Bank", desc: "High Performance Electric Sports Bike" },
+            { id: 3, name: "Tata Ace Commercial EV Truck", category: "commercial", price: 950000, displayPrice: "₹9,50,000", origPrice: "₹11,00,000", discount: "13% off", emi: "₹16,800", icon: "🚚", bank: "HDFC Commercial", desc: "Heavy Fleet Logistics Cargo Truck" },
+            { id: 4, name: "Global Cargo Vessel Ship", category: "ship", price: 120000000, displayPrice: "₹12,00,00,000", origPrice: "₹14,00,00,000", discount: "14% off", emi: "₹2,10,000", icon: "🚢", bank: "Escrow Global", desc: "Cross-Border Cargo Vessel with Sovereign Insurance" },
+            { id: 5, name: "Ather 450X EV Scooter", category: "scooter", price: 145000, displayPrice: "₹1,45,000", origPrice: "₹1,70,000", discount: "14% off", emi: "₹2,900", icon: "🛵", bank: "ICICI Bank", desc: "Smart Urban Electric Scooter" },
+            { id: 6, name: "Hyundai Ioniq 5 EV", category: "car", price: 4500000, displayPrice: "₹45,00,000", origPrice: "₹50,00,000", discount: "10% off", emi: "₹78,000", icon: "🚘", bank: "Axis Bank", desc: "Ultra-Fast Charging Electric SUV" }
+        ];
+
+        let state = {
+            userPhone: '',
+            isVerified: false,
+            activeTab: 'home',
+            activeCategory: 'all',
+            cart: [],
+            selectedVehicle: null,
+            deferredInstallPrompt: null
+        };
+
+        /* ================= INITIALIZATION & AUTH ================= */
+        window.addEventListener('load', () => {
+            // Check stored authentication
+            const savedAuth = localStorage.getItem('vehicleKart_auth');
+            if (savedAuth) {
+                const parsed = JSON.parse(savedAuth);
+                state.userPhone = parsed.phone;
+                state.isVerified = true;
+                document.getElementById('authOverlay').style.display = 'none';
+                document.getElementById('mainAppDashboard').classList.remove('hidden');
+                updateProfileUI();
+            }
+
+            renderProducts(VEHICLE_DATA);
+            calculateBankSLA();
+
+            // PWA BeforeInstallPrompt Event Listener
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                state.deferredInstallPrompt = e;
+                document.getElementById('pwaInstallBanner').style.display = 'flex';
+            });
+        });
+
+        function handleRequestOTP() {
+            const phone = document.getElementById('mobileNumberInput').value.trim();
+            if (phone.length < 10) {
+                alert('कृपया सही 10-अंकों का मोबाइल नंबर दर्ज करें (Please enter a valid 10-digit phone number).');
+                return;
+            }
+            state.userPhone = phone;
+            document.getElementById('displayUserPhone').innerText = phone;
+            document.getElementById('authStep1').classList.add('hidden');
+            document.getElementById('authStep2').classList.remove('hidden');
+        }
+
+        function handleVerifyOTP() {
+            const otp = document.getElementById('otpCodeInput').value.trim();
+            if (otp.length !== 6) {
+                alert('कृपया 6-अंकों का OTP दर्ज करें (Please enter 6-digit OTP).');
+                return;
+            }
+            document.getElementById('authStep2').classList.add('hidden');
+            document.getElementById('authStep3').classList.remove('hidden');
+
+            // Attempt Webcam activation for Face Scan simulation
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ video: true })
+                    .then(stream => {
+                        const video = document.getElementById('webcamVideo');
+                        video.srcObject = stream;
+                        video.classList.remove('hidden');
+                        document.getElementById('fallbackAvatar').classList.add('hidden');
+                    })
+                    .catch(() => {
+                        console.log('Webcam not permitted, using face scan animation.');
+                    });
+            }
+        }
+
+        function handleCompleteFaceAuth() {
+            state.isVerified = true;
+            localStorage.setItem('vehicleKart_auth', JSON.stringify({ phone: state.userPhone, verified: true }));
+            
+            document.getElementById('authOverlay').style.display = 'none';
+            document.getElementById('mainAppDashboard').classList.remove('hidden');
+            updateProfileUI();
+        }
+
+        function resetAuthSteps() {
+            document.getElementById('authStep2').classList.add('hidden');
+            document.getElementById('authStep1').classList.remove('hidden');
+        }
+
+        function handleLogout() {
+            if (confirm('क्या आप लॉगआउट करना चाहते हैं? (Are you sure you want to log out?)')) {
+                localStorage.removeItem('vehicleKart_auth');
+                location.reload();
+            }
+        }
+
+        function updateProfileUI() {
+            document.getElementById('accUserPhone').innerText = '+91 ' + state.userPhone;
+            document.getElementById('accUserName').innerText = 'Verified Sovereign Client (' + state.userPhone.slice(-4) + ')';
+        }
+
+        /* ================= PWA INSTALLATION LOGIC ================= */
+        function triggerPWAInstall() {
+            if (state.deferredInstallPrompt) {
+                state.deferredInstallPrompt.prompt();
+                state.deferredInstallPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        document.getElementById('pwaInstallBanner').style.display = 'none';
+                    }
+                    state.deferredInstallPrompt = null;
+                });
+            } else {
+                alert('iOS / Safari User: Tap Share Icon ➔ "Add to Home Screen" to install VehicleKart app.');
+            }
+        }
+
+        /* ================= NAVIGATION & TAB SWITCHER ================= */
+        function switchTab(tabName) {
+            state.activeTab = tabName;
+
+            // Hide all views
+            document.getElementById('viewHome').classList.add('hidden');
+            document.getElementById('viewDeals').classList.add('hidden');
+            document.getElementById('viewOffers').classList.add('hidden');
+            document.getElementById('viewAccount').classList.add('hidden');
+            document.getElementById('viewCart').classList.add('hidden');
+
+            // Reset nav button styling
+            ['Home', 'Deals', 'Offers', 'Account', 'Cart'].forEach(t => {
+                const btn = document.getElementById('navBtn' + t);
+                if (btn) btn.className = "flex flex-col items-center flex-1 text-gray-500";
+            });
+
+            // Activate chosen view
+            if (tabName === 'home') {
+                document.getElementById('viewHome').classList.remove('hidden');
+                document.getElementById('navBtnHome').className = "flex flex-col items-center flex-1 text-[#2874f0] font-bold";
+            } else if (tabName === 'deals') {
+                document.getElementById('viewDeals').classList.remove('hidden');
+                document.getElementById('navBtnDeals').className = "flex flex-col items-center flex-1 text-[#2874f0] font-bold";
+            } else if (tabName === 'offers') {
+                document.getElementById('viewOffers').classList.remove('hidden');
+                document.getElementById('navBtnOffers').className = "flex flex-col items-center flex-1 text-[#2874f0] font-bold";
+            } else if (tabName === 'account') {
+                document.getElementById('viewAccount').classList.remove('hidden');
+                document.getElementById('navBtnAccount').className = "flex flex-col items-center flex-1 text-[#2874f0] font-bold";
+            } else if (tabName === 'cart') {
+                document.getElementById('viewCart').classList.remove('hidden');
+                document.getElementById('navBtnCart').className = "flex flex-col items-center flex-1 text-[#2874f0] font-bold";
+            }
+        }
+
+        /* ================= PRODUCT RENDERING & FILTERING ================= */
+        function renderProducts(items) {
+            const container = document.getElementById('productGridContainer');
+            container.innerHTML = '';
+
+            if (items.length === 0) {
+                container.innerHTML = `<div class="col-span-2 text-center py-8 text-gray-500 text-xs">कोई वाहन नहीं मिला (No vehicles found).</div>`;
+                return;
+            }
+
+            items.forEach(v => {
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-lg p-2.5 shadow-sm border border-gray-100 flex flex-col justify-between cursor-pointer hover:shadow-md transition-all";
+                card.onclick = () => openVehicleModal(v);
+
+                card.innerHTML = `
+                    <div>
+                        <div class="w-full h-24 bg-gray-50 rounded-md flex items-center justify-center text-4xl mb-2 relative">
+                            ${v.icon}
+                            <span class="absolute top-1 right-1 bg-blue-100 text-[#2874f0] text-[9px] font-bold px-1.5 py-0.5 rounded">${v.bank}</span>
+                        </div>
+                        <h4 class="font-semibold text-xs text-gray-800 line-clamp-1">${v.name}</h4>
+                        <div class="flex items-center gap-1.5 mt-1">
+                            <span class="font-extrabold text-sm text-gray-900">${v.displayPrice}</span>
+                            <span class="text-[10px] text-gray-400 line-through">${v.origPrice}</span>
+                        </div>
+                        <div class="text-[10px] text-green-700 font-bold">${v.discount} • EMI from ${v.emi}</div>
+                    </div>
+                    <button class="mt-2 w-full bg-blue-50 text-[#2874f0] hover:bg-[#2874f0] hover:text-white font-bold py-1.5 rounded text-[11px] border border-blue-200 transition-colors">
+                        View Loan Terms
+                    </button>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function filterCategory(cat) {
+            state.activeCategory = cat;
+            document.getElementById('activeFilterLabel').innerText = `(${cat.toUpperCase()})`;
+            if (cat === 'all') {
+                renderProducts(VEHICLE_DATA);
+            } else {
+                const filtered = VEHICLE_DATA.filter(v => v.category === cat);
+                renderProducts(filtered);
+            }
+        }
+
+        function executeLiveSearch() {
+            const query = document.getElementById('mainSearchInput').value.toLowerCase().trim();
+            const clearBtn = document.getElementById('clearSearchBtn');
+            
+            if (query.length > 0) {
+                clearBtn.classList.remove('hidden');
+            } else {
+                clearBtn.classList.add('hidden');
+            }
+
+            const filtered = VEHICLE_DATA.filter(v => 
+                v.name.toLowerCase().includes(query) || 
+                v.category.toLowerCase().includes(query) ||
+                v.desc.toLowerCase().includes(query)
+            );
+            renderProducts(filtered);
+        }
+
+        function clearSearch() {
+            document.getElementById('mainSearchInput').value = '';
+            document.getElementById('clearSearchBtn').classList.add('hidden');
+            filterCategory(state.activeCategory);
+        }
+
+        function resetFilters() {
+            clearSearch();
+            filterCategory('all');
+        }
+
+        /* ================= MODAL & LOAN ACTIONS ================= */
+        function openVehicleModal(vehicle) {
+            state.selectedVehicle = vehicle;
+            document.getElementById('modalCategoryBadge').innerText = vehicle.category.toUpperCase();
+            document.getElementById('modalVehicleName').innerText = vehicle.name;
+            document.getElementById('modalVehicleImg').innerText = vehicle.icon;
+            document.getElementById('modalVehiclePrice').innerText = vehicle.displayPrice;
+            document.getElementById('modalVehicleEMI').innerText = vehicle.emi + '/mo';
+            document.getElementById('modalBankPartner').innerText = vehicle.bank;
+            document.getElementById('vehicleDetailModal').classList.remove('hidden');
+        }
+
+        function closeVehicleModal() {
+            document.getElementById('vehicleDetailModal').classList.add('hidden');
+        }
+
+        function addVehicleToCart() {
+            if (!state.selectedVehicle) return;
+            state.cart.push(state.selectedVehicle);
+            document.getElementById('cartBadgeCount').innerText = state.cart.length;
+            renderCartItems();
+            closeVehicleModal();
+            alert('वाहन कार्ट में जोड़ा गया! (Vehicle added to Escrow Cart)');
+        }
+
+        function renderCartItems() {
+            const cartList = document.getElementById('cartItemsList');
+            if (state.cart.length === 0) {
+                cartList.innerHTML = `<div class="text-center py-8 text-gray-500 text-xs">No vehicles in cart.</div>`;
+                return;
+            }
+
+            cartList.innerHTML = state.cart.map((v, idx) => `
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div class="flex items-center gap-3">
+                        <span class="text-3xl">${v.icon}</span>
+                        <div>
+                            <div class="font-bold text-xs">${v.name}</div>
+                            <div class="text-[11px] text-green-700 font-bold">${v.displayPrice}</div>
+                        </div>
+                    </div>
+                    <button onclick="removeFromCart(${idx})" class="text-red-500 font-bold text-xs">Remove</button>
+                </div>
+            `).join('');
+        }
+
+        function removeFromCart(idx) {
+            state.cart.splice(idx, 1);
+            document.getElementById('cartBadgeCount').innerText = state.cart.length;
+            renderCartItems();
+        }
+
+        function executeInstantLoanApply() {
+            closeVehicleModal();
+            alert('⏱️ 30-Minute SLA Loan Application Submitted!\n\nYour biometric ID has been transmitted to ' + state.selectedVehicle.bank + '. You will receive instant SMS confirmation.');
+        }
+
+        /* ================= FINANCIAL CALCULATORS ================= */
+        function calculateBankSLA() {
+            const val = document.getElementById('loanCalcRange').value;
+            document.getElementById('loanCalcAmount').innerText = '₹' + parseInt(val).toLocaleString('en-IN');
+            
+            // Monthly EMI = [P x R x (1+R)^N]/[(1+R)^N-1]
+            const monthlyRate = 0.075 / 12;
+            const emi = (val * monthlyRate * Math.pow(1 + monthlyRate, 60)) / (Math.pow(1 + monthlyRate, 60) - 1);
+            document.getElementById('calculatedEMI').innerText = '₹' + Math.round(emi).toLocaleString('en-IN') + ' / mo';
+        }
+
+        function changeUserLocationPrompt() {
+            const loc = prompt('Enter your delivery Pincode or City:', 'Ludhiana, Punjab - 141001');
+            if (loc) {
+                document.getElementById('currentUserLocation').innerText = loc;
+            }
+        }
+
+        function showTermsModal() {
+            document.getElementById('termsModal').classList.remove('hidden');
+        }
+
+        function toggleLanguage() {
+            alert('Language toggled to Hindi / English Bilingual Mode.');
+        }
+    </script>
+</body>
+</html>
